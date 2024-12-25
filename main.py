@@ -8,7 +8,6 @@ app.secret_key = "your_secret_key"
 # SQLite Database Path
 db_path = 'sentidb.db'
 
-
 # Initialize database and create tables
 def init_db():
     try:
@@ -62,19 +61,15 @@ def init_db():
     except sqlite3.Error as err:
         print(f"Database error: {err}")
 
-
 init_db()
-
 
 # Password hashing function
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-
 @app.route('/')
 def index():
     return render_template('index.html')
-
 
 @app.route('/user/register', methods=['GET', 'POST'])
 def user_register():
@@ -96,13 +91,11 @@ def user_register():
             """
             INSERT INTO users (fname, lname, email, pwd, gender, height, weight, dob, state, city)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (fname, lname, email, pwd, gender, height, weight, dob, state,
-              city))
+        """, (fname, lname, email, pwd, gender, height, weight, dob, state, city))
         conn.commit()
         conn.close()
         return redirect(url_for('user_login'))
     return render_template('user_register.html')
-
 
 @app.route('/user/login', methods=['GET', 'POST'])
 def user_login():
@@ -111,8 +104,7 @@ def user_login():
         pwd = hash_password(request.form['pwd'])
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE email = ? AND pwd = ?",
-                       (email, pwd))
+        cursor.execute("SELECT * FROM users WHERE email = ? AND pwd = ?", (email, pwd))
         user = cursor.fetchone()
         conn.close()
         if user:
@@ -121,7 +113,6 @@ def user_login():
         else:
             return "Invalid email or password"
     return render_template('user_login.html')
-
 
 @app.route('/user/dashboard')
 def user_dashboard():
@@ -136,15 +127,12 @@ def user_dashboard():
         FROM feedback
         JOIN products ON feedback.pid = products.pid
         WHERE feedback.uid = ?
-    """, (uid, ))
+    """, (uid,))
     feedbacks = cursor.fetchall()
     cursor.execute("SELECT pid, product FROM products")
     products = cursor.fetchall()
     conn.close()
-    return render_template('user_dashboard.html',
-                           feedbacks=feedbacks,
-                           products=products)
-
+    return render_template('user_dashboard.html', feedbacks=feedbacks, products=products)
 
 @app.route('/company/register', methods=['GET', 'POST'])
 def company_register():
@@ -165,7 +153,6 @@ def company_register():
         return redirect(url_for('company_login'))
     return render_template('company_register.html')
 
-
 @app.route('/company/login', methods=['GET', 'POST'])
 def company_login():
     if request.method == 'POST':
@@ -173,8 +160,7 @@ def company_login():
         pwd = hash_password(request.form['pwd'])
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM companies WHERE email = ? AND pwd = ?",
-                       (email, pwd))
+        cursor.execute("SELECT * FROM companies WHERE email = ? AND pwd = ?", (email, pwd))
         company = cursor.fetchone()
         conn.close()
         if company:
@@ -183,7 +169,6 @@ def company_login():
         else:
             return "Invalid email or password"
     return render_template('company_login.html')
-
 
 @app.route('/feedback', methods=['GET', 'POST'])
 def feedback():
@@ -212,7 +197,6 @@ def feedback():
     products = cursor.fetchall()
     conn.close()
     return render_template('feedback.html', products=products)
-
 
 if __name__ == '__main__':
     app.run(debug=True)
