@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Register</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto">
+        <h2 class="text-3xl font-bold text-center mt-10">User Registration</h2>
+        <form action="/user/register" method="POST" class="max-w-md mx-auto mt-10 space-y-4">
+            <input type="text" name="fname" placeholder="First Name" class="w-full px-4 py-2 rounded bg-gray-800 text-white">
+            <input type="text" name="lname" placeholder="Last Name" class="w-full px-4 py-2 rounded bg-gray-800 text-white">
+            <input type="email" name="email" placeholder="Email" class="w-full px-4 py-2 rounded bg-gray-800 text-white">
+            <input type="password" name="pwd" placeholder="Password" class="w-full px-4 py-2 rounded bg-gray-800 text-white">
+            <select name="gender" class="w-full px-4 py-2 rounded bg-gray-800 text-white">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+            <input type="number" name="height" placeholder="Height (in cm)" class="w-full px-4 py-2 rounded bg-gray-800 text-white">
+            <input type="number" name="weight" placeholder="Weight (in kg)" class="w-full px-4 py-2 rounded bg-gray-800 text-white">
+            <input type="date" name="dob" class="w-full px-4 py-2 rounded bg-gray-800 text-white">
+
+            <!-- State Dropdown -->
+            <select id="state" name="state" class="w-full px-4 py-2 rounded bg-gray-800 text-white">
+                <option value="" selected disabled>Select a state</option>
+            </select>
+
+            <!-- City Dropdown -->
+            <select id="city" name="city" class="w-full px-4 py-2 rounded bg-gray-800 text-white" disabled>
+                <option value="" selected disabled>Select a city</option>
+            </select>
+
+            <button type="submit" class="w-full bg-purple-600 text-white py-2 rounded">Register</button>
+        </form>
+    </div>
+
+    <!-- JavaScript for Dynamic State and City Dropdown -->
+    <script>
+        const statesData = {
+            "Andhra Pradesh": ["Visakhapatnam", "Vijayawada", "Tirupati", "Guntur", "Kurnool"],
+            "Arunachal Pradesh": ["Itanagar", "Tawang", "Ziro", "Bomdila", "Pasighat"],
+            "Assam": ["Guwahati", "Dibrugarh", "Silchar", "Jorhat", "Tezpur"],
+            "Bihar": ["Patna", "Gaya", "Bhagalpur", "Muzaffarpur", "Darbhanga"],
+            "Chhattisgarh": ["Raipur", "Bhilai", "Bilaspur", "Korba", "Durg"],
+            "Goa": ["Panaji", "Margao", "Vasco da Gama", "Mapusa", "Ponda"],
+            "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Gandhinagar"],
+            "Haryana": ["Gurugram", "Faridabad", "Panipat", "Ambala", "Hisar"],
+            "Himachal Pradesh": ["Shimla", "Manali", "Dharamshala", "Mandi", "Kullu"],
+            "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Hazaribagh"],
+            "Karnataka": ["Bengaluru", "Mysuru", "Hubballi", "Mangaluru", "Shivamogga"],
+            "Kerala": ["Thiruvananthapuram", "Kochi", "Kozhikode", "Thrissur", "Alappuzha"],
+            "Madhya Pradesh": ["Bhopal", "Indore", "Gwalior", "Jabalpur", "Ujjain"],
+            "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Nashik", "Aurangabad"],
+            "Manipur": ["Imphal", "Bishnupur", "Thoubal", "Churachandpur", "Kakching"],
+            "Meghalaya": ["Shillong", "Tura", "Nongstoin", "Jowai", "Baghmara"],
+            "Mizoram": ["Aizawl", "Lunglei", "Champhai", "Saiha", "Kolasib"],
+            "Nagaland": ["Kohima", "Dimapur", "Mokokchung", "Wokha", "Zunheboto"],
+            "Odisha": ["Bhubaneswar", "Cuttack", "Rourkela", "Puri", "Sambalpur"],
+            "Punjab": ["Chandigarh", "Ludhiana", "Amritsar", "Jalandhar", "Patiala"],
+            "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur", "Kota", "Ajmer"],
+            "Sikkim": ["Gangtok", "Namchi", "Mangan", "Ravangla", "Gyalshing"],
+            "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem"],
+            "Telangana": ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Khammam"],
+            "Tripura": ["Agartala", "Udaipur", "Dharmanagar", "Kailashahar", "Ambassa"],
+            "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra", "Meerut"],
+            "Uttarakhand": ["Dehradun", "Haridwar", "Nainital", "Haldwani", "Roorkee"],
+            "West Bengal": ["Kolkata", "Siliguri", "Durgapur", "Asansol", "Howrah"],
+            "Andaman and Nicobar Islands": ["Port Blair", "Car Nicobar", "Hut Bay", "Mayabunder", "Diglipur"],
+            "Chandigarh": ["Chandigarh"],
+            "Dadra and Nagar Haveli and Daman and Diu": ["Daman", "Diu", "Silvassa"],
+            "Delhi": ["New Delhi", "Old Delhi", "Dwarka", "Saket", "Rohini"],
+            "Lakshadweep": ["Kavaratti", "Agatti", "Amini", "Kadmat", "Kalpeni"],
+            "Puducherry": ["Puducherry", "Karaikal", "Mahe", "Yanam"]
+        };
+
+        const stateSelect = document.getElementById('state');
+        const citySelect = document.getElementById('city');
+
+        // Populate states
+        for (const state in statesData) {
+            const option = document.createElement('option');
+            option.value = state;
+            option.textContent = state;
+            stateSelect.appendChild(option);
+        }
+
+        // Populate cities based on selected state
+        stateSelect.addEventListener('change', function () {
+            const selectedState = this.value;
+            citySelect.innerHTML = '<option value="" selected disabled>Select a city</option>';
+            citySelect.disabled = false;
+
+            if (statesData[selectedState]) {
+                statesData[selectedState].forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    citySelect.appendChild(option);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
