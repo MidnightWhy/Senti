@@ -1,0 +1,42 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto">
+        <h2 class="text-3xl font-bold text-center mt-10">User Dashboard</h2>
+        <div class="mt-10">
+            <h3 class="text-2xl mb-4">Your Feedbacks</h3>
+            {% for fid, product, feedback, sentiment in feedbacks %}
+                <div class="bg-gray-800 p-4 rounded mb-4">
+                    <p><strong>Product:</strong> {{ product }}</p>
+                    <p><strong>Feedback:</strong> {{ feedback }}</p>
+                    <p><strong>Sentiment:</strong> {{ sentiment }}</p>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="mt-10">
+            <h3 class="text-2xl mb-4">Submit New Feedback</h3>
+            <form action="/feedback" method="POST" class="space-y-4">
+                <select name="pid" class="w-full px-4 py-2 rounded bg-gray-800 text-white">
+                    {% for pid, product in products %}
+                        <option value="{{ pid }}">{{ product }}</option>
+                    {% endfor %}
+                </select>
+                <textarea name="feedback" placeholder="Enter your feedback" class="w-full px-4 py-2 rounded bg-gray-800 text-white"></textarea>
+                <select name="sentiment" class="w-full px-4 py-2 rounded bg-gray-800 text-white">
+                    <option value="positive">Positive</option>
+                    <option value="neutral">Neutral</option>
+                    <option value="negative">Negative</option>
+                </select>
+                <button type="submit" class="w-full bg-purple-600 text-white py-2 rounded">Submit</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -12,17 +12,16 @@ db_path = 'sentidb.db'
 # Initialize database and create tables
 def init_db():
     try:
-        # Connect to SQLite database
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
         # Create tables
-        cursor.execute("""
+        cursor.executescript("""
             CREATE TABLE IF NOT EXISTS users (
-                uid TEXT PRIMARY KEY,
+                uid INTEGER PRIMARY KEY AUTOINCREMENT,
                 fname TEXT,
                 lname TEXT,
-                email TEXT,
+                email TEXT UNIQUE,
                 pwd TEXT,
                 gender TEXT,
                 height REAL,
@@ -31,30 +30,27 @@ def init_db():
                 state TEXT,
                 city TEXT
             );
-        """)
-        cursor.execute("""
+
             CREATE TABLE IF NOT EXISTS companies (
-                cid TEXT PRIMARY KEY,
+                cid INTEGER PRIMARY KEY AUTOINCREMENT,
                 company TEXT,
-                email TEXT,
+                email TEXT UNIQUE,
                 pwd TEXT
             );
-        """)
-        cursor.execute("""
+
             CREATE TABLE IF NOT EXISTS products (
-                pid TEXT PRIMARY KEY,
-                cid TEXT,
+                pid INTEGER PRIMARY KEY AUTOINCREMENT,
+                cid INTEGER,
                 product TEXT,
                 thumbnail TEXT,
                 barcode TEXT,
                 FOREIGN KEY (cid) REFERENCES companies(cid)
             );
-        """)
-        cursor.execute("""
+
             CREATE TABLE IF NOT EXISTS feedback (
-                fid TEXT PRIMARY KEY,
-                uid TEXT,
-                pid TEXT,
+                fid INTEGER PRIMARY KEY AUTOINCREMENT,
+                uid INTEGER,
+                pid INTEGER,
                 feedback TEXT,
                 sentiment TEXT,
                 FOREIGN KEY (uid) REFERENCES users(uid),
@@ -75,7 +71,6 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 
-# Routes
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -84,7 +79,6 @@ def index():
 @app.route('/user/register', methods=['GET', 'POST'])
 def user_register():
     if request.method == 'POST':
-        uid = request.form['uid']
         fname = request.form['fname']
         lname = request.form['lname']
         email = request.form['email']
@@ -96,21 +90,16 @@ def user_register():
         state = request.form['state']
         city = request.form['city']
 
-        # Insert data into the users table
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        query = """
-            INSERT INTO users (uid, fname, lname, email, pwd, gender, height, weight, dob, state, city)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        values = (uid, fname, lname, email, pwd, gender, height, weight, dob,
-                  state, city)
-        cursor.execute(query, values)
+        cursor.execute(
+            """
+            INSERT INTO users (fname, lname, email, pwd, gender, height, weight, dob, state, city)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (fname, lname, email, pwd, gender, height, weight, dob, state,
+              city))
         conn.commit()
-        cursor.close()
         conn.close()
-
-        # Redirect to login page
         return redirect(url_for('user_login'))
     return render_template('user_register.html')
 
@@ -120,47 +109,59 @@ def user_login():
     if request.method == 'POST':
         email = request.form['email']
         pwd = hash_password(request.form['pwd'])
-        # Query the database for the user
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        query = "SELECT * FROM users WHERE email = ? AND pwd = ?"
-        values = (email, pwd)
-        cursor.execute(query, values)
+        cursor.execute("SELECT * FROM users WHERE email = ? AND pwd = ?",
+                       (email, pwd))
         user = cursor.fetchone()
-        cursor.close()
         conn.close()
         if user:
-            # Store user id in session
             session['uid'] = user[0]
-            return redirect(url_for('index'))
+            return redirect(url_for('user_dashboard'))
         else:
-            # Invalid credentials
             return "Invalid email or password"
     return render_template('user_login.html')
+
+
+@app.route('/user/dashboard')
+def user_dashboard():
+    if 'uid' not in session:
+        return redirect(url_for('user_login'))
+    uid = session['uid']
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT feedback.fid, products.product, feedback.feedback, feedback.sentiment
+        FROM feedback
+        JOIN products ON feedback.pid = products.pid
+        WHERE feedback.uid = ?
+    """, (uid, ))
+    feedbacks = cursor.fetchall()
+    cursor.execute("SELECT pid, product FROM products")
+    products = cursor.fetchall()
+    conn.close()
+    return render_template('user_dashboard.html',
+                           feedbacks=feedbacks,
+                           products=products)
 
 
 @app.route('/company/register', methods=['GET', 'POST'])
 def company_register():
     if request.method == 'POST':
-        cid = request.form['cid']
         company = request.form['company']
         email = request.form['email']
         pwd = hash_password(request.form['pwd'])
 
-        # Insert data into the companies table
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        query = """
-            INSERT INTO companies (cid, company, email, pwd)
-            VALUES (?, ?, ?, ?)
-        """
-        values = (cid, company, email, pwd)
-        cursor.execute(query, values)
+        cursor.execute(
+            """
+            INSERT INTO companies (company, email, pwd)
+            VALUES (?, ?, ?)
+        """, (company, email, pwd))
         conn.commit()
-        cursor.close()
         conn.close()
-
-        # Redirect to login page
         return redirect(url_for('company_login'))
     return render_template('company_register.html')
 
@@ -170,21 +171,16 @@ def company_login():
     if request.method == 'POST':
         email = request.form['email']
         pwd = hash_password(request.form['pwd'])
-        # Query the database for the company
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        query = "SELECT * FROM companies WHERE email = ? AND pwd = ?"
-        values = (email, pwd)
-        cursor.execute(query, values)
+        cursor.execute("SELECT * FROM companies WHERE email = ? AND pwd = ?",
+                       (email, pwd))
         company = cursor.fetchone()
-        cursor.close()
         conn.close()
         if company:
-            # Store company id in session
             session['cid'] = company[0]
             return redirect(url_for('index'))
         else:
-            # Invalid credentials
             return "Invalid email or password"
     return render_template('company_login.html')
 
@@ -194,28 +190,28 @@ def feedback():
     if 'uid' not in session:
         return redirect(url_for('user_login'))
     if request.method == 'POST':
-        fid = request.form['fid']
         uid = session['uid']
         pid = request.form['pid']
         feedback_text = request.form['feedback']
         sentiment = request.form['sentiment']
 
-        # Insert data into the feedback table
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        query = """
-            INSERT INTO feedback (fid, uid, pid, feedback, sentiment)
-            VALUES (?, ?, ?, ?, ?)
-        """
-        values = (fid, uid, pid, feedback_text, sentiment)
-        cursor.execute(query, values)
+        cursor.execute(
+            """
+            INSERT INTO feedback (uid, pid, feedback, sentiment)
+            VALUES (?, ?, ?, ?)
+        """, (uid, pid, feedback_text, sentiment))
         conn.commit()
-        cursor.close()
         conn.close()
+        return redirect(url_for('user_dashboard'))
 
-        # Redirect to index page
-        return redirect(url_for('index'))
-    return render_template('feedback.html')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT pid, product FROM products")
+    products = cursor.fetchall()
+    conn.close()
+    return render_template('feedback.html', products=products)
 
 
 if __name__ == '__main__':
