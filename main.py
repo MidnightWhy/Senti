@@ -8,61 +8,6 @@ app.secret_key = "your_secret_key"
 # SQLite Database Path
 db_path = 'sentidb.db'
 
-# Initialize database and create tables
-def init_db():
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-
-        # Create tables
-        cursor.executescript("""
-            CREATE TABLE IF NOT EXISTS users (
-                uid INTEGER PRIMARY KEY AUTOINCREMENT,
-                fname TEXT,
-                lname TEXT,
-                email TEXT UNIQUE,
-                pwd TEXT,
-                gender TEXT,
-                height REAL,
-                weight REAL,
-                dob TEXT,
-                state TEXT,
-                city TEXT
-            );
-
-            CREATE TABLE IF NOT EXISTS companies (
-                cid INTEGER PRIMARY KEY AUTOINCREMENT,
-                company TEXT,
-                email TEXT UNIQUE,
-                pwd TEXT
-            );
-
-            CREATE TABLE IF NOT EXISTS products (
-                pid INTEGER PRIMARY KEY AUTOINCREMENT,
-                cid INTEGER,
-                product TEXT,
-                thumbnail TEXT,
-                barcode TEXT,
-                FOREIGN KEY (cid) REFERENCES companies(cid)
-            );
-
-            CREATE TABLE IF NOT EXISTS feedback (
-                fid INTEGER PRIMARY KEY AUTOINCREMENT,
-                uid INTEGER,
-                pid INTEGER,
-                feedback TEXT,
-                sentiment TEXT,
-                FOREIGN KEY (uid) REFERENCES users(uid),
-                FOREIGN KEY (pid) REFERENCES products(pid)
-            );
-        """)
-        conn.commit()
-        conn.close()
-    except sqlite3.Error as err:
-        print(f"Database error: {err}")
-
-init_db()
-
 # Password hashing function
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -70,6 +15,24 @@ def hash_password(password):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    next_page = request.args.get('next', '/')
+    if request.method == 'POST':
+        email = request.form['email']
+        pwd = hash_password(request.form['pwd'])
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT uid FROM users WHERE email = ? AND pwd = ?", (email, pwd))
+        user = cursor.fetchone()
+        conn.close()
+        if user:
+            session['uid'] = user[0]
+            return redirect(next_page)
+        else:
+            return "Invalid email or password"
+    return render_template('login.html', next=next_page)
 
 @app.route('/user/register', methods=['GET', 'POST'])
 def user_register():
@@ -94,30 +57,17 @@ def user_register():
         """, (fname, lname, email, pwd, gender, height, weight, dob, state, city))
         conn.commit()
         conn.close()
-        return redirect(url_for('user_login'))
+        return redirect(url_for('login'))
     return render_template('user_register.html')
 
 @app.route('/user/login', methods=['GET', 'POST'])
 def user_login():
-    if request.method == 'POST':
-        email = request.form['email']
-        pwd = hash_password(request.form['pwd'])
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE email = ? AND pwd = ?", (email, pwd))
-        user = cursor.fetchone()
-        conn.close()
-        if user:
-            session['uid'] = user[0]
-            return redirect(url_for('user_dashboard'))
-        else:
-            return "Invalid email or password"
-    return render_template('user_login.html')
+    return redirect(url_for('login'))
 
 @app.route('/user/dashboard')
 def user_dashboard():
     if 'uid' not in session:
-        return redirect(url_for('user_login'))
+        return redirect(url_for('login', next=request.url))
     uid = session['uid']
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -129,10 +79,39 @@ def user_dashboard():
         WHERE feedback.uid = ?
     """, (uid,))
     feedbacks = cursor.fetchall()
-    cursor.execute("SELECT pid, product FROM products")
-    products = cursor.fetchall()
     conn.close()
-    return render_template('user_dashboard.html', feedbacks=feedbacks, products=products)
+    return render_template('user_dashboard.html', feedbacks=feedbacks)
+
+@app.route('/feedback', methods=['GET', 'POST'])
+def feedback():
+    if request.method == 'POST':
+        if 'uid' in session:
+            uid = session['uid']
+            pid = request.form['pid']
+            feedback_text = request.form['feedback']
+            sentiment = 'neutral'  # Default sentiment
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO feedback (uid, pid, feedback, sentiment)
+                VALUES (?, ?, ?, ?)
+            """, (uid, pid, feedback_text, sentiment))
+            conn.commit()
+            conn.close()
+            return redirect(url_for('feedback'))
+        else:
+            return redirect(url_for('login', next=request.url))
+    if 'uid' in session:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT pid, product FROM products")
+        products = cursor.fetchall()
+        conn.close()
+        return render_template('feedback.html', products=products)
+    else:
+        return redirect(url_for('login', next=request.url))
 
 @app.route('/company/register', methods=['GET', 'POST'])
 def company_register():
@@ -160,7 +139,7 @@ def company_login():
         pwd = hash_password(request.form['pwd'])
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM companies WHERE email = ? AND pwd = ?", (email, pwd))
+        cursor.execute("SELECT cid FROM companies WHERE email = ? AND pwd = ?", (email, pwd))
         company = cursor.fetchone()
         conn.close()
         if company:
@@ -169,34 +148,6 @@ def company_login():
         else:
             return "Invalid email or password"
     return render_template('company_login.html')
-
-@app.route('/feedback', methods=['GET', 'POST'])
-def feedback():
-    if 'uid' not in session:
-        return redirect(url_for('user_login'))
-    if request.method == 'POST':
-        uid = session['uid']
-        pid = request.form['pid']
-        feedback_text = request.form['feedback']
-        sentiment = request.form['sentiment']
-
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO feedback (uid, pid, feedback, sentiment)
-            VALUES (?, ?, ?, ?)
-        """, (uid, pid, feedback_text, sentiment))
-        conn.commit()
-        conn.close()
-        return redirect(url_for('user_dashboard'))
-
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("SELECT pid, product FROM products")
-    products = cursor.fetchall()
-    conn.close()
-    return render_template('feedback.html', products=products)
 
 if __name__ == '__main__':
     app.run(debug=True)
